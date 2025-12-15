@@ -1,0 +1,15 @@
+{
+  "batch_size": 4,          
+  "img_size": 256,          
+  "epochs": 40,            
+  "lr_g": 0.0002,
+  "lr_d": 0.0001,
+  "lambda_au": 15.0,
+  "lambda_id": 10.0,
+  "lambda_feat": 5.0,
+  "lambda_perc": 1.0,
+  "save_interval": 5,      
+  "gradient_accumulation_steps": 1,
+  "role_map": {"real": 0, "cartoon": 1, "handdrawn": 2},
+  "device": "cuda"           
+}
