@@ -1,0 +1,12 @@
+torch==2.1.0
+torchvision==0.16.0
+opencv-python==4.8.1.78
+Pillow==10.0.1
+mtcnn==0.1.1
+tqdm==4.66.1
+numpy==1.26.2
+gradio==4.13.0
+scipy==1.11.4
+transformers==4.35.2
+imageio==2.31.1
+jieba==0.42.1
