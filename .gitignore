@@ -1,0 +1,44 @@
+# 忽略常见的图片格式
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.svg
+*.ico
+*.webp
+
+# 忽略其他媒体文件
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.mp3
+*.wav
+*.flac
+
+# 忽略压缩包和文档
+*.zip
+*.rar
+*.7z
+*.pdf
+*.doc
+*.docx
+
+# 忽略特定的数据目录
+assets/
+data/
+outputs/
+temp/
+
+# 忽略Python编译文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 忽略日志文件
+*.log
+
+# 忽略系统文件
+.DS_Store
+Thumbs.db
