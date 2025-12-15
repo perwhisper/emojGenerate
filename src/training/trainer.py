@@ -4,11 +4,15 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-7→from torch.cuda.amp import autocast, GradScaler
-8→from torchvision.models import resnet50, vgg19, VGG19_Weights, ResNet50_Weights
+from torch.cuda.amp import autocast, GradScaler
+from torchvision.models import resnet50, vgg19, VGG19_Weights, ResNet50_Weights
 from tqdm import tqdm
 import sys
-sys.path.append("../../")  # 根目录
+# 兼容从项目根或任何工作目录启动：将项目根加入 sys.path
+_CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJ_ROOT = os.path.abspath(os.path.join(_CUR_DIR, "..", ".."))
+if _PROJ_ROOT not in sys.path:
+    sys.path.insert(0, _PROJ_ROOT)
 
 from src.data_process.dataset import EmojiDataset
 from src.model.generator import EmojiGenerator

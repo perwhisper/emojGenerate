@@ -1,7 +1,11 @@
 import gradio as gr
 import os
 import sys
-sys.path.append("../../")  # 根目录
+# 兼容从项目根或任何工作目录启动：将项目根加入 sys.path
+_CUR_DIR = os.path.dirname(os.path.abspath(__file__))
+_PROJ_ROOT = os.path.abspath(os.path.join(_CUR_DIR, "..", ".."))
+if _PROJ_ROOT not in sys.path:
+    sys.path.insert(0, _PROJ_ROOT)
 
 from src.pipeline.emoji_pipeline import EmojiGeneratorPipeline
 
