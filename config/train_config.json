@@ -1,5 +1,5 @@
 {
-  "batch_size": 4,          
+  "batch_size": 8,          
   "img_size": 256,          
   "epochs": 40,            
   "lr_g": 0.0002,
@@ -11,5 +11,11 @@
   "save_interval": 5,      
   "gradient_accumulation_steps": 1,
   "role_map": {"real": 0, "cartoon": 1, "handdrawn": 2},
-  "device": "cuda"           
+  "device": "cuda",
+  "precision": "bf16",
+  "tf32": true,
+  "channels_last": true,
+  "use_torch_compile": true,
+  "num_workers": 8,
+  "cuda_device": 0           
 }

@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from torch.cuda.amp import autocast, GradScaler
-from torchvision.models import resnet50, vgg19, VGG19_Weights
+7→from torch.cuda.amp import autocast, GradScaler
+8→from torchvision.models import resnet50, vgg19, VGG19_Weights, ResNet50_Weights
 from tqdm import tqdm
 import sys
 sys.path.append("../../")  # 根目录
@@ -21,14 +21,31 @@ class EmojiTrainer:
         with open(config_path, "r") as f:
             self.config = json.load(f)
         self.device = torch.device(self.config["device"])
-        self.scaler = GradScaler()  # 混合精度训练
+        # RTX 4090 优化与精度设置
+        if self.device.type == "cuda":
+            torch.cuda.set_device(self.config.get("cuda_device", 0))
+            torch.backends.cudnn.benchmark = True
+            if self.config.get("tf32", True):
+                torch.backends.cuda.matmul.allow_tf32 = True
+                torch.backends.cudnn.allow_tf32 = True
+                torch.set_float32_matmul_precision("high")
+            self.precision = self.config.get("precision", "bf16")
+            self.amp_dtype = torch.bfloat16 if self.precision == "bf16" else torch.float16
+            self.scaler = GradScaler(enabled=(self.precision == "fp16"))
+        else:
+            self.precision = "fp32"
+            self.amp_dtype = None
+            self.scaler = GradScaler(enabled=False)
 
         # 初始化模型
         self.static_gen = EmojiGenerator(au_dim=16).to(self.device)
         self.discriminator = EmojiDiscriminator(au_dim=16).to(self.device)
+        if self.config.get("use_torch_compile", False):
+            self.static_gen = torch.compile(self.static_gen)
+            self.discriminator = torch.compile(self.discriminator)
 
-        # ArcFace身份提取器（预训练，冻结参数）
-        self.arcface = resnet50(pretrained=True)
+30→        # ArcFace身份提取器（预训练，冻结参数）
+31→        self.arcface = resnet50(weights=ResNet50_Weights.IMAGENET1K_V1)
         self.arcface.fc = nn.Linear(2048, 512)
         self.arcface = self.arcface.to(self.device)
         set_requires_grad(self.arcface, False)
@@ -67,8 +84,9 @@ class EmojiTrainer:
             self.dataset,
             batch_size=self.config["batch_size"],
             shuffle=True,
-            num_workers=0,
-            pin_memory=True  # 加速GPU数据传输
+            num_workers=int(self.config.get("num_workers", max(1, (os.cpu_count() or 4) // 2))),
+            pin_memory=(self.device.type == "cuda"),
+            persistent_workers=int(self.config.get("num_workers", max(1, (os.cpu_count() or 4) // 2))) > 0
         )
 
     def train_static_generator(self):
@@ -84,19 +102,20 @@ class EmojiTrainer:
             for batch in pbar:
                 # 加载批次数据
                 img, au_code, _, role_type = batch
-                img = img.to(self.device)
-                au_code = au_code.to(self.device)
-                role_type = role_type.to(self.device)
+                mem_format = torch.channels_last if self.config.get("channels_last", True) else torch.contiguous_format
+                img = img.to(self.device, non_blocking=True).to(memory_format=mem_format)
+                au_code = au_code.to(self.device, non_blocking=True)
+                role_type = role_type.to(self.device, non_blocking=True)
 
                 # ---------------------
                 # 1. 训练判别器
                 # ---------------------
                 self.optimizer_D.zero_grad()
-                with autocast():  # 混合精度
+                with autocast(dtype=self.amp_dtype, enabled=(self.device.type == "cuda" and self.precision in ["bf16", "fp16"])):  # 混合精度
                     # 真实样本
                     real_pred, real_au, real_id_feat = self.discriminator(img)
-                    real_label = torch.ones_like(real_pred).to(self.device)
-                    fake_label = torch.zeros_like(real_pred).to(self.device)
+                    real_label = torch.ones_like(real_pred, device=self.device)
+                    fake_label = torch.zeros_like(real_pred, device=self.device)
 
                     d_real_loss = self.adversarial_loss(real_pred, real_label)
                     d_real_au_loss = self.au_loss(real_au, au_code)
@@ -118,7 +137,7 @@ class EmojiTrainer:
                 # 2. 训练生成器
                 # ---------------------
                 self.optimizer_G.zero_grad()
-                with autocast():
+                with autocast(dtype=self.amp_dtype, enabled=(self.device.type == "cuda" and self.precision in ["bf16", "fp16"])):
                     # 伪造样本（重新计算，保留梯度）
                     fake_pred, fake_au, fake_id_feat = self.discriminator(fake_img)
                     # 对抗损失（欺骗判别器）
